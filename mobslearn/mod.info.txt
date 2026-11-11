@@ -1,0 +1,6 @@
+{
+    "name": "MobsLearn (Rust Adapted)",
+    "author": "RRM (Ported to Horizon)",
+    "version": "1.0.0",
+    "description": "Портированная версия мода MobsLearn. ИИ мобов и система обучения переписаны на Rust для максимальной производительности."
+}

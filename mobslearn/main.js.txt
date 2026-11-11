@@ -1,0 +1,46 @@
+// Регистрируем нативную библиотеку Rust (подгружаем dylib)
+// Horizon на ПК автоматически найдет mobslearn.dll (Windows) или libmobslearn.so (Linux)
+try {
+    java.lang.System.loadLibrary("mobslearn");
+    Logger.Log("MobsLearn: Нативный модуль Rust успешно подключен!", "INFO");
+} catch(e) {
+    Logger.Log("MobsLearn: Не удалось загрузить Rust-модуль. Убедитесь, что DLL/SO файл лежит в папке либ или рядом с модом. Ошибка: " + e, "ERROR");
+}
+
+Callback.addCallback("PostInitialization", function() {
+    Logger.Log("MobsLearn: Мод успешно инициализирован на Horizon!", "INFO");
+});
+
+// Обработка тиков мобов (Заменяет com.rrm.mobslearn.mob.Behaviors)
+Callback.addCallback("EntityTicked", function(entityUid, entityType) {
+    if (entityType == EntityType.ZOMBIE) {
+        var health = Entity.getHealth(entityUid);
+        
+        // Вызываем тяжелые вычисления ИИ из Rust. Передаем ID зомби
+        // Функция вернет уровень интеллекта зомби (от 1 до 5)
+        var intelLevel = 1;
+        try {
+            intelLevel = Packages.com.zhekasmirnov.horizon.mod.mobslearn.RustBrain.tickMob(entityUid);
+        } catch(e) {
+            // Если вы еще не скомпилировали Rust, используем стандартный уровень 1
+        }
+
+        // Логика ярости: если здоровья мало, ускоряем зомби
+        if (health > 0 && health < 8) {
+            var vel = Entity.getVel(entityUid);
+            // Чем умнее зомби (intelLevel), тем быстрее он бежит в ярости
+            var speedMultiplier = 1.2 + (intelLevel * 0.1); 
+            Entity.setVel(entityUid, vel.x * speedMultiplier, vel.y, vel.z * speedMultiplier);
+        }
+    }
+});
+
+// Отслеживаем урон для обучения зомби тактике боя (Заменяет com.rrm.mobslearn.learn.Trigger)
+Callback.addCallback("EntityHurt", function(attacker, victim, damageAmount) {
+    if (Entity.getType(victim) == EntityType.ZOMBIE && Entity.getType(attacker) == EntityType.PLAYER) {
+        try {
+            // Передаем в Rust информацию, что зомби атакован игроком, чтобы поднять его ИИ уровень
+            Packages.com.zhekasmirnov.horizon.mod.mobslearn.RustBrain.triggerLearning(victim, 1);
+        } catch(e) {}
+    }
+});
